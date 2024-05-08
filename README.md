@@ -9,3 +9,5 @@ https://raw.githubusercontent.com/c98cmka/MyDalamudPlugins/main/pluginmaster.jso
 <h4>实机效果</h4>
 
 ![](https://raw.githubusercontent.com/c98cmka/SkyEye/master/1.png)
+
+爱来自akira0245和snorux
