@@ -1,13 +1,23 @@
-<h2>FF14 EurekaRadar 优雷卡雷达</h2>
+# EurekaRadar
+FFXIV 优雷卡雷达
 
-<h3>安装</h3>
+仅适用于国服的优雷卡辅助插件。
 
+## 安装
 ```
 https://raw.githubusercontent.com/c98cmka/MyDalamudPlugins/main/pluginmaster.json
 ```
 
-<h4>实机效果</h4>
+## 功能列表
+##### 2D雷达相关:
 
-![](https://raw.githubusercontent.com/c98cmka/SkyEye/master/1.png)
+- 展示NM对应可触发时间及CD剩余时间
+- 展示特殊天气状态 (KX、PX、狗子等)
 
-爱来自akira0245和snorux
+##### 3D雷达相关:
+
+- 点击幸福兔胡萝卜后3D绘制所有对应方向距离的宝箱刷点
+
+##### 位移相关:
+
+- 周围没有玩家时自动加快移速。
