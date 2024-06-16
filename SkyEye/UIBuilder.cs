@@ -7,17 +7,22 @@ using System.Linq;
 using System.Media;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using System.Runtime.Versioning;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Dalamud.Game.ClientState.Conditions;
 using Dalamud.Game.ClientState.Fates;
 using Dalamud.Game.ClientState.Objects.Types;
 using Dalamud.Interface.Internal;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 using Dalamud.Plugin;
 using Dalamud.Plugin.Services;
 using Dalamud.Utility;
+using FFXIVClientStructs.FFXIV.Client.Game.Control;
 using FFXIVClientStructs.FFXIV.Client.Game.Fate;
+using FFXIVClientStructs.FFXIV.Client.Game.Object;
 using FFXIVClientStructs.FFXIV.Client.System.Resource.Handle;
 using FFXIVClientStructs.FFXIV.Component.GUI;
 using FFXIVClientStructs.STD;
@@ -26,6 +31,7 @@ using Lumina.Excel;
 using Lumina.Excel.GeneratedSheets;
 using SkyEye.Data;
 using SkyEye.Data.Positions;
+using static FFXIVClientStructs.FFXIV.Client.Game.Character.Character;
 using static Lumina.Data.Parsing.Layer.LayerCommon;
 
 namespace SkyEye;
@@ -33,6 +39,7 @@ namespace SkyEye;
 public unsafe class UIBuilder : IDisposable
 {
     private DalamudPluginInterface pi;
+    private Plugin pl;
 
     private readonly Dictionary<uint, ushort> sizeFactorDict;
     //private Dictionary<ushort, Map[]> TerritoryMapsDictionary { get; }
@@ -94,20 +101,12 @@ public unsafe class UIBuilder : IDisposable
     public UIBuilder(Plugin plugin, DalamudPluginInterface pluginInterface)
     {
         pi = pluginInterface;
+        pl = plugin;
 
         sizeFactorDict = Plugin.dataManager.GetExcelSheet<TerritoryType>().ToDictionary((TerritoryType k) => k.RowId, (TerritoryType v) => v.Map.Value.SizeFactor);
-        //TerritoryMapsDictionary = (from i in Plugin.dataManager.GetExcelSheet<Map>().GroupBy(delegate (Map i)
-        //{
-        //    LazyRow<TerritoryType> territoryType = i.TerritoryType;
-        //    if (territoryType == null)
-        //    {
-        //        return null;
-        //    }
-        //    TerritoryType value = territoryType.Value;
-        //    return (value == null) ? null : new uint?(value.RowId);
-        //}) where i.Key.HasValue && i.Key != 0 select i).ToDictionary((IGrouping<uint?, Map> i) => (ushort)i.Key.Value, (IGrouping<uint?, Map> j) => j.ToArray());
         Plugin.clientState.TerritoryChanged += TerritoryChanged;
         pi.UiBuilder.Draw += UiBuilder_OnBuildUi;
+        Plugin.Framework.Update += onUpdate;
     }
 
     private void TerritoryChanged(ushort territoryId)
@@ -126,13 +125,25 @@ public unsafe class UIBuilder : IDisposable
         Plugin.clientState.TerritoryChanged -= TerritoryChanged;
     }
 
+    private void onUpdate(IFramework f) {
+        //RefreshObjects();
+        //RefreshEureka();
+        //ObjectList2D.Clear();
+        //EurekaList2D.Clear();
+        //foreach (var item in EurekaLiveIdList2D)
+        //{
+        //    EurekaLiveIdList2D_old.Add(item);
+        //}
+        //EurekaLiveIdList2D.Clear();
+    }
+
     private unsafe void UiBuilder_OnBuildUi()
     {
         bool flag = false;
         try
         {
             if (Plugin.clientState.LocalPlayer != null && 
-                (Plugin.clientState.TerritoryType == 732 || Plugin.clientState.TerritoryType == 763 || Plugin.clientState.TerritoryType == 795 || Plugin.clientState.TerritoryType == 827) &&
+                (Plugin.clientState.TerritoryType == 732 || Plugin.clientState.TerritoryType == 763 || Plugin.clientState.TerritoryType == 795 || Plugin.clientState.TerritoryType == 827 || Plugin.clientState.TerritoryType == 628) &&
                 !(Plugin.condition[ConditionFlag.BetweenAreas] || Plugin.condition[ConditionFlag.BetweenAreas51]))
             {
                 flag = true;
@@ -157,15 +168,29 @@ public unsafe class UIBuilder : IDisposable
             {
                 DrawMapOverlay();
             }
+            if (Plugin.Configuration.Overlay3D_Enabled)
+            {
+                foreach (Vector3 pos in pl._detectedTreasurePositions)
+                {
+                    Camera.WorldToScreen(pos, out Vector2 v);
+                    BDL.DrawMapDot(v, Yellow, Yellow);
+                }
+            }
             //Plugin.log.Error(Convert.ToDateTime(DateTime.Now.ToString().Replace("/", "-")).ToString());
         }
         ObjectList2D.Clear();
         EurekaList2D.Clear();
-        foreach (var item in EurekaLiveIdList2D) {
+        foreach (var item in EurekaLiveIdList2D)
+        {
             EurekaLiveIdList2D_old.Add(item);
         }
         EurekaLiveIdList2D.Clear();
     }
+
+
+
+
+
 
     private void RefreshObjects()
     {
@@ -202,7 +227,7 @@ public unsafe class UIBuilder : IDisposable
                     if (o.Value.Contains(":")) //时间够两小时的更新成-1
                     {
                         TimeSpan minuteSpan = new TimeSpan(DateTime.Now.Ticks - Convert.ToDateTime(o.Value).Ticks);
-                        if (minuteSpan.TotalHours >= 2) //超过两小时
+                        if (minuteSpan.Hours >= 2) //超过两小时
                         {
                             EurekaAnemos.deadFateDic[o.Key] = "-1"; //cd好了
                         }
@@ -238,14 +263,14 @@ public unsafe class UIBuilder : IDisposable
                         TimeSpan minuteSpan = new TimeSpan(DateTime.Now.Ticks - Convert.ToDateTime(o.Value).Ticks);
                         if (o.Key == 1367 || o.Key == 1368)
                         { //兔子
-                            if (minuteSpan.TotalMinutes >= 8) //超过8分钟
+                            if (minuteSpan.Minutes >= 7) //超过7分钟
                             {
                                 EurekaPagos.deadFateDic[o.Key] = "-1"; //cd好了
                             }
                         }
                         else
                         {
-                            if (minuteSpan.TotalHours >= 2) //超过两小时
+                            if (minuteSpan.Hours >= 2) //超过两小时
                             {
                                 EurekaPagos.deadFateDic[o.Key] = "-1"; //cd好了
                             }
@@ -283,14 +308,14 @@ public unsafe class UIBuilder : IDisposable
                         TimeSpan minuteSpan = new TimeSpan(DateTime.Now.Ticks - Convert.ToDateTime(o.Value).Ticks);
                         if (o.Key == 1407 || o.Key == 1408)
                         { //兔子
-                            if (minuteSpan.TotalMinutes >= 8) //超过8分钟
+                            if (minuteSpan.Minutes >= 7) //超过7分钟
                             {
                                 EurekaPyros.deadFateDic[o.Key] = "-1"; //cd好了
                             }
                         }
                         else
                         {
-                            if (minuteSpan.TotalHours >= 2) //超过两小时
+                            if (minuteSpan.Hours >= 2) //超过两小时
                             {
                                 EurekaPyros.deadFateDic[o.Key] = "-1"; //cd好了
                             }
@@ -328,14 +353,14 @@ public unsafe class UIBuilder : IDisposable
                         TimeSpan minuteSpan = new TimeSpan(DateTime.Now.Ticks - Convert.ToDateTime(o.Value).Ticks);
                         if (o.Key == 1425)
                         { //兔子
-                            if (minuteSpan.TotalMinutes >= 10.5) //超过10.5分钟
+                            if (minuteSpan.Minutes >= 7) //超过10.5分钟
                             {
                                 EurekaHydatos.deadFateDic[o.Key] = "-1"; //cd好了
                             }
                         }
                         else
                         {
-                            if (minuteSpan.TotalHours >= 2) //超过两小时
+                            if (minuteSpan.Hours >= 2) //超过两小时
                             {
                                 EurekaHydatos.deadFateDic[o.Key] = "-1"; //cd好了
                             }
@@ -344,7 +369,6 @@ public unsafe class UIBuilder : IDisposable
                 }
                 break;
             default:
-                Plugin.log.Error("not in Eureka.");
                 break;
         }
 
@@ -510,7 +534,7 @@ public unsafe class UIBuilder : IDisposable
                         case 763:
                             if ("1367".Equals(item.fateId) || "1368".Equals(item.fateId))
                             {
-                                timeFromCanTriggered = new TimeSpan(0, 8, 0) - (DateTime.Now - Convert.ToDateTime(EurekaPagos.deadFateDic[ushort.Parse(item.fateId)]));
+                                timeFromCanTriggered = new TimeSpan(0, 7, 0) - (DateTime.Now - Convert.ToDateTime(EurekaPagos.deadFateDic[ushort.Parse(item.fateId)]));
                             }
                             else { 
                                 timeFromCanTriggered = new TimeSpan(2, 0, 0) - (DateTime.Now - Convert.ToDateTime(EurekaPagos.deadFateDic[ushort.Parse(item.fateId)]));
@@ -519,7 +543,7 @@ public unsafe class UIBuilder : IDisposable
                         case 795:
                             if ("1407".Equals(item.fateId) || "1408".Equals(item.fateId))
                             {
-                                timeFromCanTriggered = new TimeSpan(0, 8, 0) - (DateTime.Now - Convert.ToDateTime(EurekaPyros.deadFateDic[ushort.Parse(item.fateId)]));
+                                timeFromCanTriggered = new TimeSpan(0, 7, 0) - (DateTime.Now - Convert.ToDateTime(EurekaPyros.deadFateDic[ushort.Parse(item.fateId)]));
                             }
                             else
                             {
@@ -529,7 +553,7 @@ public unsafe class UIBuilder : IDisposable
                         case 827:
                             if ("1425".Equals(item.fateId))
                             {
-                                timeFromCanTriggered = new TimeSpan(0, 10, 30) - (DateTime.Now - Convert.ToDateTime(EurekaHydatos.deadFateDic[ushort.Parse(item.fateId)]));
+                                timeFromCanTriggered = new TimeSpan(0, 7, 0) - (DateTime.Now - Convert.ToDateTime(EurekaHydatos.deadFateDic[ushort.Parse(item.fateId)]));
                             }
                             else if ("1422".Equals(item.fateId) || "1424".Equals(item.fateId)) //UFO 支援
                             {
@@ -602,7 +626,7 @@ public unsafe class UIBuilder : IDisposable
                     }
                     else
                     {
-                        if (item.SpawnRequiredWeather == EurekaWeather.None) //无需天气，需要夜晚
+                        if (item.SpawnRequiredWeather == EurekaWeather.None && item.SpawnByRequiredNight) //无需天气，需要夜晚
                         {
                             int etime_hour = int.Parse(eorzeaTime.EorzeaDateTime.ToString("%H"));
                             if (etime_hour < 6 || etime_hour >= 18) //是晚上
@@ -618,7 +642,7 @@ public unsafe class UIBuilder : IDisposable
                                 BDL.DrawText(pos, item.name + "\n" + timeFromNight.ToString(@"hh\:mm\:ss"), Grey, true);
                             }
                         }
-                        else //无需夜晚，需要天气
+                        else if (item.SpawnRequiredWeather != EurekaWeather.None && !item.SpawnByRequiredNight) //无需夜晚，需要天气
                         {
                             if (!weatherDic.ContainsKey(item.SpawnRequiredWeather) || weatherNow.Weather == item.SpawnRequiredWeather) //天气过关
                             {
@@ -631,9 +655,44 @@ public unsafe class UIBuilder : IDisposable
                                 BDL.DrawText(pos, item.name + "\n" + weatherDic[item.SpawnRequiredWeather].Item1, Grey, true);
                             }
                         }
+                        else if (item.SpawnRequiredWeather != EurekaWeather.None && item.SpawnByRequiredNight) //需要夜晚，需要天气 PZZ
+                        {
+                            int etime_hour = int.Parse(eorzeaTime.EorzeaDateTime.ToString("%H"));
+                            string weatherLeftTime = weatherDic[item.SpawnRequiredWeather].Item2; //天气还剩多久
+                            if ((!weatherDic.ContainsKey(item.SpawnRequiredWeather) || weatherNow.Weather == item.SpawnRequiredWeather) && (etime_hour < 6 || etime_hour >= 18)) //天气时间过关
+                            {
+                                //离白天还有多久
+                                TimeSpan timeFromDay = eorzeaTime.TimeUntilDay();
+                                if (timeFromDay.Ticks < TimeSpan.Parse(weatherLeftTime).Ticks)
+                                {
+                                    BDL.DrawText(pos, item.name + "\n" + timeFromDay.ToString(@"hh\:mm\:ss"), item.fgcolor, true);
+                                }
+                                else {
+                                    BDL.DrawText(pos, item.name + "\n" + weatherLeftTime, item.fgcolor, true);
+                                }
+                                
+                            }
+                            else
+                            {
+                                if (etime_hour >= 6 && etime_hour < 18) //没到夜晚
+                                {
+                                    //离夜晚还有多久
+                                    TimeSpan timeFromNight = eorzeaTime.TimeUntilNight();
+                                    BDL.DrawText(pos, item.name + "\n" + timeFromNight.ToString(@"hh\:mm\:ss"), Grey, true);
+                                }
+                                else //没到天气
+                                {
+                                    BDL.DrawText(pos, item.name + "\n" + weatherDic[item.SpawnRequiredWeather].Item1, Grey, true);
+                                }
+                            }
+                        }
                     }
                 }
             }
+        }
+        if (Plugin.Configuration.Overlay2D_WeatherMap_Enabled)
+        {
+            DrawWeatherMap(valueOrDefault);
         }
         //if (Plugin.Configuration.Overlay2D_ShowCenter)
         //{
@@ -737,7 +796,6 @@ public unsafe class UIBuilder : IDisposable
     public void NMFound()
     {
         player1.Stop();
-        Plugin.log.Error("nmFound");
         player1.SoundLocation = Path.Combine(pi.AssemblyLocation.Directory?.FullName!, "nm.wav");
         player1.Load();
         player1.Play();
@@ -746,9 +804,153 @@ public unsafe class UIBuilder : IDisposable
     public void TZFound()
     {
         player2.Stop();
-        Plugin.log.Error("tzFound");
         player2.SoundLocation = Path.Combine(pi.AssemblyLocation.Directory?.FullName!, "tz.wav");
         player2.Load();
         player2.Play();
+    }
+
+    public void DrawWeatherMap(Vector2 valueOrDefault)
+    {
+        string notice = "";
+
+        //风岛天气
+        List<(EurekaWeather Weather, TimeSpan Time)> anemosWeathers = eurekaAnemos.GetAllNextWeatherTime();
+        (EurekaWeather Weather, TimeSpan Time) anemosweatherNow = eurekaAnemos.GetCurrentWeatherInfo();
+        Dictionary<EurekaWeather, (string, string)> anemosweatherDic = new Dictionary<EurekaWeather, (string, string)>();
+        foreach (var o in anemosWeathers)
+        {
+            (DateTime Start, DateTime End) timeFromNextWeather = EorzeaWeather.GetWeatherUptime(o.Weather, EurekaAnemos.Weathers, DateTime.Now);
+            TimeSpan TimeLeft = timeFromNextWeather.End - DateTime.Now;
+            anemosweatherDic.Add(o.Weather, (o.Time.ToString(@"hh\:mm\:ss"), TimeLeft.ToString(@"hh\:mm\:ss")));
+        }
+        
+        notice += "风岛：";
+        int etime_hour = int.Parse(eorzeaTime.EorzeaDateTime.ToString("%H"));
+        if (anemosweatherNow.Weather == EurekaWeather.Gales)
+        {
+            //天气剩余时间
+            notice = notice + "强风○(" + anemosweatherDic[EurekaWeather.Gales].Item2 + ")";
+        } 
+        else
+        {
+            notice = notice + "强风×(" + anemosweatherDic[EurekaWeather.Gales].Item1 + ")";
+        }
+        if (etime_hour >= 6 && etime_hour < 18) //没到夜晚
+        {
+            //离夜晚还有多久
+            TimeSpan timeFromNight = eorzeaTime.TimeUntilNight();
+            notice = notice + "    夜晚×(" + timeFromNight.ToString(@"hh\:mm\:ss") + ")";
+        }
+        else
+        {
+            //离白天还有多久
+            TimeSpan timeFromDay = eorzeaTime.TimeUntilDay();
+            notice = notice + "    夜晚○(" + timeFromDay.ToString(@"hh\:mm\:ss") + ")";
+        }
+
+        notice += "\n";
+
+
+        //冰岛天气
+        List<(EurekaWeather Weather, TimeSpan Time)> pagosWeathers = eurekaPagos.GetAllNextWeatherTime();
+        (EurekaWeather Weather, TimeSpan Time) pagosweatherNow = eurekaPagos.GetCurrentWeatherInfo();
+        Dictionary<EurekaWeather, (string, string)> pagosweatherDic = new Dictionary<EurekaWeather, (string, string)>();
+        foreach (var o in pagosWeathers)
+        {
+            (DateTime Start, DateTime End) timeFromNextWeather = EorzeaWeather.GetWeatherUptime(o.Weather, EurekaPagos.Weathers, DateTime.Now);
+            TimeSpan TimeLeft = timeFromNextWeather.End - DateTime.Now;
+            pagosweatherDic.Add(o.Weather, (o.Time.ToString(@"hh\:mm\:ss"), TimeLeft.ToString(@"hh\:mm\:ss")));
+        }
+
+        notice += "冰岛：";
+        //kx
+        if (pagosweatherNow.Weather == EurekaWeather.Blizzards)
+        {
+            //天气剩余时间
+            notice = notice + "暴雪○(" + pagosweatherDic[EurekaWeather.Blizzards].Item2 + ")";
+        }
+        else
+        {
+            //距离天气时间
+            notice = notice + "暴雪×(" + pagosweatherDic[EurekaWeather.Blizzards].Item1 + ")";
+        }
+        //px
+        if (pagosweatherNow.Weather == EurekaWeather.Fog)
+        {
+            //天气剩余时间
+            notice = notice + "    薄雾○(" + pagosweatherDic[EurekaWeather.Fog].Item2 + ")";
+        }
+        else
+        {
+            //距离天气时间
+            notice = notice + "    薄雾×(" + pagosweatherDic[EurekaWeather.Fog].Item1 + ")";
+        }
+        notice += "\n";
+
+
+        //火岛天气
+        List<(EurekaWeather Weather, TimeSpan Time)> pyrosWeathers = eurekaPyros.GetAllNextWeatherTime();
+        (EurekaWeather Weather, TimeSpan Time) pyrosweatherNow = eurekaPyros.GetCurrentWeatherInfo();
+        Dictionary<EurekaWeather, (string, string)> pyrosweatherDic = new Dictionary<EurekaWeather, (string, string)>();
+        foreach (var o in pyrosWeathers)
+        {
+            (DateTime Start, DateTime End) timeFromNextWeather = EorzeaWeather.GetWeatherUptime(o.Weather, EurekaPyros.Weathers, DateTime.Now);
+            TimeSpan TimeLeft = timeFromNextWeather.End - DateTime.Now;
+            pyrosweatherDic.Add(o.Weather, (o.Time.ToString(@"hh\:mm\:ss"), TimeLeft.ToString(@"hh\:mm\:ss")));
+        }
+
+        notice += "火岛：";
+        //狗子
+        if (pyrosweatherNow.Weather == EurekaWeather.Blizzards)
+        {
+            //天气剩余时间
+            notice = notice + "暴雪○(" + pyrosweatherDic[EurekaWeather.Blizzards].Item2 + ")";
+        }
+        else
+        {
+            //距离天气时间
+            notice = notice + "暴雪×(" + pyrosweatherDic[EurekaWeather.Blizzards].Item1 + ")";
+        }
+        //热浪
+        if (pyrosweatherNow.Weather == EurekaWeather.HeatWaves)
+        {
+            //天气剩余时间
+            notice = notice + "    热浪○(" + pyrosweatherDic[EurekaWeather.HeatWaves].Item2 + ")";
+        }
+        else
+        {
+            //距离天气时间
+            notice = notice + "    热浪×(" + pyrosweatherDic[EurekaWeather.HeatWaves].Item1 + ")";
+        }
+
+        //Plugin.log.Error(notice);
+
+        //绘制
+        switch (Plugin.clientState.TerritoryType)
+        {
+            case 732:
+                ToVector3(MapToWorld(new Vector2(25.9f, 27.0f), Plugin.dataManager.GetExcelSheet<Map>()?.GetRow(732)));
+                Vector2 pos732 = WorldToMap(valueOrDefault, new Vector3(-9.1946f, 0, 584.4f));
+                BDL.DrawText(pos732, notice, White, true);
+                break;
+            case 763:
+                Vector2 pos763 = WorldToMap(valueOrDefault, new Vector3(-9.1946f, 0, 584.4f));
+                BDL.DrawText(pos763, notice, White, true);
+                break;
+            case 795:
+                Vector2 pos795 = WorldToMap(valueOrDefault, new Vector3(0.2181f, 0, 865.32275f));
+                BDL.DrawText(pos795, notice, White, true);
+                break;
+            case 827:
+                Vector2 pos827 = WorldToMap(valueOrDefault, new Vector3(89.62729f, 0, -1241.035f));
+                BDL.DrawText(pos827, notice, White, true);
+                break;
+            case 628:
+                Vector2 pos628 = WorldToMap(valueOrDefault, new Vector3(-131.185f, 0, 251.177f));
+                BDL.DrawText(pos628, notice, White, true);
+                break;
+            default:
+                break;
+        }
     }
 }

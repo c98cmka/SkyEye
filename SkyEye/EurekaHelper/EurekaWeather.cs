@@ -26,7 +26,7 @@ namespace SkyEye.Data
         {
             return weather switch
             {
-                EurekaWeather.Gales => "大风",
+                EurekaWeather.Gales => "强风",
                 EurekaWeather.Showers => "小雨",
                 EurekaWeather.FairSkies => "晴朗",
                 EurekaWeather.Snow => "小雪",
@@ -36,8 +36,8 @@ namespace SkyEye.Data
                 EurekaWeather.Fog => "薄雾",
                 EurekaWeather.UmbralWind => "妖风",
                 EurekaWeather.Thunderstorms => "雷暴",
-                EurekaWeather.Gloom => "Gloom",
-                _ => "None",
+                EurekaWeather.Gloom => "乱灵流",
+                _ => "无",
             };
         }
     }
