@@ -1,4 +1,4 @@
-# EurekaRadar
+# SkyEye
 FFXIV 优雷卡雷达
 
 仅适用于国服的优雷卡辅助插件。
