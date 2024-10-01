@@ -21,3 +21,5 @@ https://raw.githubusercontent.com/c98cmka/MyDalamudPlugins/main/pluginmaster.jso
 ##### 位移相关:
 
 - 周围没有玩家时自动加快移速。
+
+![这是图片](https://raw.githubusercontent.com/c98cmka/SkyEye/main/1.png)
